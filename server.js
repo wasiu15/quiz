@@ -10,12 +10,17 @@ const io = require("socket.io")(http);
 
 app.get("/", (req, res) => res.sendFile(__dirname + "/index.html"));
 
+/////////////////////////////////////////
+// const { SSL_OP_NO_QUERY_MTU } = require("constants");
+
+// const app = require("express")();
 // const server = require("http").createServer(app);
 // const io = require("socket.io")(server, {
 //   cors: {
 //     origin: "*",
 //   },
 // });
+//////////////////////////////////////////
 
 var listOfBookings = [
   "LSF23",
@@ -25,6 +30,16 @@ var listOfBookings = [
   "S2F02",
   "F2E42",
   "SLF03",
+  "OIUY43",
+  "UIW24J",
+  "YUWHJFS",
+  "IKJFM2",
+  "UIWKEJ",
+  "OKJED2",
+  "OIKJD2",
+  "QWECB3",
+  "OEUL32",
+  "OLKJ9X",
   "IRUCB2",
   "WUJ20",
   "QIYO1",
@@ -40,17 +55,16 @@ var listOfBookings = [
   "WI2BH",
   "SSLO2",
 ];
-let randomNumber = parseInt(Math.random() * listOfBookings.length);
-var randomBooking = "";
 io.on("connection", (socket) => {
+  let randomNumber = parseInt(Math.random() * listOfBookings.length);
+  var randomBooking = "",
+    currentBookingCode = "";
   randomBooking = listOfBookings[randomNumber];
   let index = listOfBookings.indexOf(randomBooking);
-
-  console.log(listOfBookings.length);
   console.log("connection made successfully");
   socket.on("message", (payload) => {
     console.log("Message received on server: ", payload);
-    if (payload.stage == "1") {
+    if (payload.stage === "1") {
       var sendOutBookingObj = {};
       if (payload.isGetBooking) {
         if (index > -1) {
@@ -58,18 +72,19 @@ io.on("connection", (socket) => {
         }
         io.emit("message", randomBooking);
       } else {
-        if (payload.connectionStatus == "waiting for pair") {
+        if (payload.connectionStatus === "waiting for pair") {
           listOfBookings.push({
             bookingCode: payload.bookingCode,
             playerName: payload.playerName,
             connectionStatus: payload.connectionStatus,
             concatQuestionNumber: payload.concatQuestionNumber,
           });
-        } else if (payload.connectionStatus == "want to pair") {
+        } else if (payload.connectionStatus === "want to pair") {
           var tempList = [];
           listOfBookings.forEach((element) => {
-            if (payload.bookingCode == element.bookingCode) {
-              if (element.connectionStatus == "waiting for pair") {
+            if (payload.bookingCode === element.bookingCode) {
+              if (element.connectionStatus === "waiting for pair") {
+                currentBookingCode = element.bookingCode;
                 sendOutBookingObj = {
                   bookingCode: element.bookingCode,
                   connectionStatus: "paired",
@@ -89,7 +104,7 @@ io.on("connection", (socket) => {
             }
           });
           listOfBookings = tempList;
-          if (sendOutBookingObj == {}) {
+          if (sendOutBookingObj === {}) {
             sendOutBookingObj = {
               connectionStatus: "unable to pair",
               details: "booking code match not found",
@@ -98,24 +113,36 @@ io.on("connection", (socket) => {
           io.emit("message", sendOutBookingObj);
         }
       }
-    } else if (payload.stage == "2") {
+    } else if (payload.stage === "2") {
       console.log("Message distributed");
-      if (payload.p2SelectedOption == payload.correctAnswer) {
+      if (payload.p2SelectedOption === payload.correctAnswer) {
         payload.isCorrect = true;
       }
       io.emit("message", payload);
     }
-    console.log(listOfBookings.length);
   });
   socket.on("disconnect", () => {
-    console.log("Socket is disconnected and element is returned");
+    index = listOfBookings.indexOf(randomBooking);
     if (index < 0) {
       listOfBookings.push(randomBooking);
-      console.log(listOfBookings.length);
+    }
+    console.log("Dis-connected with list of = " + listOfBookings.length);
+    if (currentBookingCode !== "") {
+      var disconnector = {
+        stage: 3,
+        bookingCode: currentBookingCode,
+        disconnected: true,
+      };
+      io.emit("message", disconnector);
     }
   });
 });
 
 http.listen(PORT, function () {
-  console.log("I am listening at port 7000");
+  console.log("I am listening at port " + PORT);
 });
+
+////////////////////////////////
+// server.listen(7000, () => {
+//   console.log("I am listening at port 7000");
+// });
